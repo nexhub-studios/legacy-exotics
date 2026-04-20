@@ -6,49 +6,35 @@
 /* ── 1. PRELOADER ─────────────────────────────────────────── */
 (function initPreloader() {
   const preloader = document.getElementById('preloader');
-  const video = document.getElementById('hero-video');
   if (!preloader) return;
 
+  let isHidden = false;
+
   const hide = () => {
+    if (isHidden) return;
+    isHidden = true;
+
     preloader.classList.add('hidden');
+    preloader.style.pointerEvents = 'none';
+
     preloader.addEventListener('transitionend', () => {
       preloader.style.display = 'none';
+      
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+      
+      if (window.ScrollTrigger) {
+        window.ScrollTrigger.refresh();
+      }
     }, { once: true });
   };
 
-  let isVideoReady = false;
-  let isPageLoaded = false;
-
-  function checkReady() {
-    if ((isVideoReady || !video) && isPageLoaded) {
-      setTimeout(hide, 300);
-    }
-  }
+  setTimeout(hide, 1500);
 
   if (document.readyState === 'complete') {
-    isPageLoaded = true;
-    checkReady();
+    hide();
   } else {
-    window.addEventListener('load', () => {
-      isPageLoaded = true;
-      checkReady();
-    });
-  }
-
-  if (video) {
-    if (video.readyState >= 3) {
-      isVideoReady = true;
-      checkReady();
-    } else {
-      video.addEventListener('canplay', () => {
-        isVideoReady = true;
-        checkReady();
-      });
-      video.addEventListener('error', () => {
-        isVideoReady = true;
-        checkReady();
-      });
-    }
+    window.addEventListener('load', hide);
   }
 })();
 
