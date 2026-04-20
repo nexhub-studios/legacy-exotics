@@ -206,17 +206,15 @@
     if (!inHeroZone()) return;
 
     if (state === 'playing') {
-      e.preventDefault();
       return;
     }
 
     if (state === 'waiting' && e.deltaY > 0) {
-      e.preventDefault();
       state = 'playing';
       video.play().catch(() => { });
       return;
     }
-  }, { passive: false });
+  }, { passive: true });
 
   /* ── TOUCH ── */
   window.addEventListener('touchstart', (e) => {
@@ -228,16 +226,14 @@
     const delta = lastTouchY - e.touches[0].clientY;
 
     if (state === 'playing') {
-      e.preventDefault();
       return;
     }
     if (state === 'waiting' && delta > 5) {
-      e.preventDefault();
       state = 'playing';
       video.play().catch(() => { });
       return;
     }
-  }, { passive: false });
+  }, { passive: true });
 
 })();
 
