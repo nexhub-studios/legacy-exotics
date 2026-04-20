@@ -453,16 +453,27 @@ body:not(.scrolled-deep) #site-header {
 }
 
 
-/* Full-screen video */
+/* Poster and Video Twins */
+#hero-poster,
 #hero-video {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: center;
+  object-position: right center;
   z-index: 0;
   pointer-events: none;
+}
+
+#hero-video {
+  opacity: 0;
+  transition: opacity 0.5s ease-in-out;
+  z-index: 1; /* Place above the poster */
+}
+
+#hero-video.is-playing {
+  opacity: 1;
 }
 
 /* Text overlay — left side */
@@ -545,6 +556,7 @@ body:not(.scrolled-deep) #site-header {
 
 /* ── LARGE TABLET (1025–1200px): start shifting right ── */
 @media (max-width: 1200px) {
+  #hero-poster,
   #hero-video {
     object-position: 100% center;
     transform: scale(1.15) translateX(-5%);
@@ -553,6 +565,7 @@ body:not(.scrolled-deep) #site-header {
 
 /* ── SMALL TABLET (901–1024px): shift further right ── */
 @media (max-width: 1024px) {
+  #hero-poster,
   #hero-video {
     object-position: 100% center;
     transform: scale(1.15) translateX(-5%);
@@ -566,6 +579,7 @@ body:not(.scrolled-deep) #site-header {
   }
 
   /* Video fills top 60%, shifted to right (animation area) + 10% zoom */
+  #hero-poster,
   #hero-video {
     position: absolute;
     top: 0;

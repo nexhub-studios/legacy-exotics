@@ -159,21 +159,14 @@
 
     showInitialText();
 
-    video.style.transition = 'opacity 0.3s ease';
-    video.style.opacity = '0';
+    video.classList.remove('is-playing');
 
     setTimeout(() => {
       video.pause();
       video.currentTime = 0;
       state = 'waiting';
-
-      video.style.opacity = '1';
-
-      setTimeout(() => {
-        video.style.transition = '';
-        resetting = false;
-      }, 350);
-    }, 300);
+      resetting = false;
+    }, 500);
   }
 
   window.addEventListener('scroll', () => {
@@ -197,6 +190,7 @@
 
     if (state === 'waiting' && e.deltaY > 0) {
       state = 'playing';
+      video.classList.add('is-playing');
       video.play().catch(() => { });
       return;
     }
@@ -216,6 +210,7 @@
     }
     if (state === 'waiting' && delta > 5) {
       state = 'playing';
+      video.classList.add('is-playing');
       video.play().catch(() => { });
       return;
     }
