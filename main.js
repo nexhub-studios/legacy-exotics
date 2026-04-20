@@ -6,6 +6,7 @@
 /* ── 1. PRELOADER ─────────────────────────────────────────── */
 (function initPreloader() {
   const preloader = document.getElementById('preloader');
+  const video = document.getElementById('hero-video');
   if (!preloader) return;
 
   const hide = () => {
@@ -15,10 +16,39 @@
     }, { once: true });
   };
 
+  let isVideoReady = false;
+  let isPageLoaded = false;
+
+  function checkReady() {
+    if ((isVideoReady || !video) && isPageLoaded) {
+      setTimeout(hide, 300);
+    }
+  }
+
   if (document.readyState === 'complete') {
-    setTimeout(hide, 700);
+    isPageLoaded = true;
+    checkReady();
   } else {
-    window.addEventListener('load', () => setTimeout(hide, 700));
+    window.addEventListener('load', () => {
+      isPageLoaded = true;
+      checkReady();
+    });
+  }
+
+  if (video) {
+    if (video.readyState >= 3) {
+      isVideoReady = true;
+      checkReady();
+    } else {
+      video.addEventListener('canplay', () => {
+        isVideoReady = true;
+        checkReady();
+      });
+      video.addEventListener('error', () => {
+        isVideoReady = true;
+        checkReady();
+      });
+    }
   }
 })();
 
@@ -64,8 +94,6 @@
 
 
 /* ── 2. HERO VIDEO — SIMPLE STATE MACHINE ─────────────────── */
-/*  STATE: waiting → playing (scroll locked) → done            */
-/*  Scroll up when done: smooth fade-reset back to waiting     */
 (function initHeroVideo() {
   const spacer = document.querySelector('.hero-scroll-spacer');
   const video = document.getElementById('hero-video');
@@ -78,17 +106,19 @@
 
   /* ── State: 'waiting' | 'playing' | 'done' ── */
   let state = 'waiting';
-  let resetting = false;   // debounce smooth-reset
+  let resetting = false;
+  let textSwitched = false;
   let lastTouchY = 0;
+  let lastY = window.scrollY;
 
   const inHeroZone = () => {
     const r = spacer.getBoundingClientRect();
-    return r.top <= 0 && r.bottom >= window.innerHeight;
+    return r.top <= 0 && r.bottom > window.innerHeight * 0.1;
   };
 
-  /* ── Show/hide text with display management ── */
   function showFinalText() {
-    // Make visible in DOM first, THEN start opacity transition next frame
+    if (textSwitched) return;
+    textSwitched = true;
     textFinal.style.display = 'block';
     requestAnimationFrame(() => {
       textInit?.classList.add('hidden-text');
@@ -97,8 +127,10 @@
       textInit?.setAttribute('aria-hidden', 'true');
     });
   }
+
   function showInitialText() {
-    // Restore initial text to DOM before transitioning
+    if (!textSwitched) return;
+    textSwitched = false;
     textInit.style.display = 'block';
     requestAnimationFrame(() => {
       textFinal?.classList.remove('visible');
@@ -108,7 +140,6 @@
     });
   }
 
-  // After fade-out completes → remove from rendering entirely
   textInit?.addEventListener('transitionend', (e) => {
     if (e.propertyName === 'opacity' && textInit.classList.contains('hidden-text')) {
       textInit.style.display = 'none';
@@ -120,29 +151,28 @@
     }
   });
 
-
-  /* ── Text switches 2 seconds before video ends ── */
   video.addEventListener('timeupdate', () => {
     if (!video.duration || state !== 'playing') return;
-    if (video.duration - video.currentTime <= 2.0) showFinalText();
+    // Unlock and show text 2 seconds before end
+    if (video.duration - video.currentTime <= 2.0 && !textSwitched) {
+      showFinalText();
+      state = 'done'; // this unlocks scroll
+    }
   });
 
-  /* ── Video ends → unlock scroll ── */
   video.addEventListener('ended', () => {
-    state = 'done';
-    // Ensure final text is visible
-    showFinalText();
+    if (state !== 'done') {
+      state = 'done';
+      showFinalText();
+    }
   });
 
-  /* ── Smooth reset: fade video out, snap to frame 0, fade back in ── */
   function smoothReset() {
-    if (resetting) return;
+    if (resetting || state === 'waiting' || state === 'playing') return;
     resetting = true;
 
-    // Text switches immediately
     showInitialText();
 
-    // Fade video out
     video.style.transition = 'opacity 0.3s ease';
     video.style.opacity = '0';
 
@@ -151,41 +181,41 @@
       video.currentTime = 0;
       state = 'waiting';
 
-      // Fade back in
       video.style.opacity = '1';
 
       setTimeout(() => {
         video.style.transition = '';
         resetting = false;
-      }, 350); // wait for fade-in to complete
-
-    }, 300); // wait for fade-out to complete
+      }, 350);
+    }, 300);
   }
 
-  /* ── WHEEL (non-passive so we can preventDefault) ── */
+  window.addEventListener('scroll', () => {
+    const y = window.scrollY;
+
+    // Reset when user scrolls back up into the hero container and scrolling upwards
+    if (y < lastY && inHeroZone() && state === 'done') {
+      smoothReset();
+    }
+
+    lastY = y;
+  }, { passive: true });
+
+  /* ── WHEEL ── */
   window.addEventListener('wheel', (e) => {
     if (!inHeroZone()) return;
 
     if (state === 'playing') {
-      // Video mid-play → block ALL scroll
       e.preventDefault();
       return;
     }
 
     if (state === 'waiting' && e.deltaY > 0) {
-      // First scroll down → start video, lock scroll
       e.preventDefault();
       state = 'playing';
       video.play().catch(() => { });
       return;
     }
-
-    if (state === 'done' && e.deltaY < 0) {
-      // Scroll up → smooth reset
-      e.preventDefault();
-      smoothReset();
-    }
-    // state === 'done' + e.deltaY > 0 → pass through (normal scroll past hero)
   }, { passive: false });
 
   /* ── TOUCH ── */
@@ -196,7 +226,6 @@
   window.addEventListener('touchmove', (e) => {
     if (!inHeroZone()) return;
     const delta = lastTouchY - e.touches[0].clientY;
-    lastTouchY = e.touches[0].clientY;
 
     if (state === 'playing') {
       e.preventDefault();
@@ -207,10 +236,6 @@
       state = 'playing';
       video.play().catch(() => { });
       return;
-    }
-    if (state === 'done' && delta < -5) {
-      e.preventDefault();
-      smoothReset();
     }
   }, { passive: false });
 
